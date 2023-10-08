@@ -1,0 +1,183 @@
+<html>
+<head>
+<title>home_controller.dart</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #a9b7c6;}
+.s1 { color: #6a8759;}
+.s2 { color: #cc7832;}
+.s3 { color: #6897bb;}
+.s4 { color: #808080;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+home_controller.dart</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">'dart:async'</span><span class="s2">;</span>
+<span class="s0">import </span><span class="s1">'dart:convert'</span><span class="s2">;</span>
+<span class="s0">import </span><span class="s1">'package:eatery/pages/home/model/home_response_model.dart'</span><span class="s2">;</span>
+<span class="s0">import </span><span class="s1">'package:eatery/pages/routes/app_routes.dart'</span><span class="s2">;</span>
+<span class="s0">import </span><span class="s1">'package:hive_flutter/hive_flutter.dart'</span><span class="s2">;</span>
+<span class="s0">import </span><span class="s1">'package:http/http.dart' </span><span class="s0">as http</span><span class="s2">;</span>
+
+<span class="s0">import </span><span class="s1">'package:eatery/widget/components.dart'</span><span class="s2">;</span>
+<span class="s0">import </span><span class="s1">'package:flutter/material.dart'</span><span class="s2">;</span>
+<span class="s0">import </span><span class="s1">'package:get/get.dart'</span><span class="s2">;</span>
+<span class="s0">import </span><span class="s1">'package:shared_preferences/shared_preferences.dart'</span><span class="s2">;</span>
+
+<span class="s2">class </span><span class="s0">HomeController </span><span class="s2">extends </span><span class="s0">GetxController {</span>
+
+  <span class="s2">final </span><span class="s0">searchTextFormField = TextEditingController().obs</span><span class="s2">;</span>
+
+  <span class="s2">final </span><span class="s0">loading = </span><span class="s2">false</span><span class="s0">.obs</span><span class="s2">;</span>
+  <span class="s2">final </span><span class="s0">isChanged = </span><span class="s2">false</span><span class="s0">.obs</span><span class="s2">;</span>
+  <span class="s2">var </span><span class="s0">allResponseData = RxList&lt;dynamic&gt;()</span><span class="s2">;</span>
+  <span class="s2">final </span><span class="s0">dataList = &lt;AppResponseModel&gt;[].obs</span><span class="s2">;</span>
+  <span class="s2">final </span><span class="s0">steps = &lt;String&gt;[].obs</span><span class="s2">;</span>
+  <span class="s2">final </span><span class="s0">foodListSearch = &lt;AppResponseModel&gt;[].obs</span><span class="s2">;</span>
+  <span class="s0">Timer? debounce</span><span class="s2">;</span>
+
+  <span class="s0">@override</span>
+  <span class="s2">void </span><span class="s0">onInit() {</span>
+    <span class="s0">fetchData()</span><span class="s2">;</span>
+    <span class="s2">super</span><span class="s0">.onInit()</span><span class="s2">;</span>
+  <span class="s0">}</span>
+
+
+  <span class="s0">@override</span>
+  <span class="s2">void </span><span class="s0">dispose() {</span>
+    <span class="s2">super</span><span class="s0">.dispose()</span><span class="s2">;</span>
+    <span class="s0">print(</span><span class="s1">&quot;dispose===&gt;&quot;</span><span class="s0">)</span><span class="s2">;</span>
+    <span class="s0">Hive.box(</span><span class="s1">'ApiData'</span><span class="s0">).clear()</span><span class="s2">;</span>
+
+  <span class="s0">}</span>
+
+
+  <span class="s0">@override</span>
+  <span class="s2">void </span><span class="s0">onClose() {</span>
+    <span class="s0">print(</span><span class="s1">&quot;onClose===&gt;&quot;</span><span class="s0">)</span><span class="s2">;</span>
+    <span class="s2">super</span><span class="s0">.onClose()</span><span class="s2">;</span>
+  <span class="s0">}</span>
+
+  <span class="s0">Future&lt;</span><span class="s2">void</span><span class="s0">&gt; fetchData() async {</span>
+    <span class="s0">checkConnectivity().then((connectivity) async {</span>
+      <span class="s0">print(</span><span class="s1">&quot;check data connectivity </span><span class="s0">${connectivity}</span><span class="s1">&quot;</span><span class="s0">)</span><span class="s2">;</span>
+      <span class="s2">if </span><span class="s0">(connectivity == </span><span class="s2">true</span><span class="s0">) {</span>
+        <span class="s2">try </span><span class="s0">{</span>
+          <span class="s0">loading.value = </span><span class="s2">true;</span>
+          <span class="s2">final </span><span class="s0">value = await http.get(Uri.parse(</span><span class="s1">&quot;https://recipesapi.kutaybekleric.com/recipes&quot;</span><span class="s0">))</span><span class="s2">;</span>
+          <span class="s0">print(</span><span class="s1">&quot;check data value.statusCode </span><span class="s0">${value.statusCode}</span><span class="s1">&quot;</span><span class="s0">)</span><span class="s2">;</span>
+          <span class="s2">if </span><span class="s0">(value.statusCode == </span><span class="s3">200</span><span class="s0">) {</span>
+            <span class="s0">loading.value = </span><span class="s2">false;</span>
+            <span class="s0">List jsonResponse = json.decode(value.body)</span><span class="s2">;</span>
+            <span class="s0">List&lt;AppResponseModel&gt; fetchedData = jsonResponse.map((job) =&gt; AppResponseModel.fromJson(job)).toList()</span><span class="s2">;</span>
+            <span class="s2">final </span><span class="s0">boxData=await Hive.openBox(</span><span class="s1">&quot;ApiData&quot;</span><span class="s0">)</span><span class="s2">;</span>
+            <span class="s0">await boxData.addAll(fetchedData)</span><span class="s2">;</span>
+
+            <span class="s0">dataList.assignAll(fetchedData)</span><span class="s2">;</span>
+            <span class="s0">steps.value = dataList[</span><span class="s3">0</span><span class="s0">].tags ?? []</span><span class="s2">;</span>
+            <span class="s0">print(</span><span class="s1">&quot;check data and </span><span class="s0">${dataList.length}</span><span class="s1">&quot;</span><span class="s0">)</span><span class="s2">;</span>
+            <span class="s0">print(</span><span class="s1">&quot;check data steps </span><span class="s0">${steps.length}</span><span class="s1">&quot;</span><span class="s0">)</span><span class="s2">;</span>
+          <span class="s0">} </span><span class="s2">else </span><span class="s0">{</span>
+            <span class="s0">loading.value = </span><span class="s2">false;</span>
+
+            <span class="s2">throw </span><span class="s1">&quot;something went wrong&quot;</span><span class="s2">;</span>
+          <span class="s0">}</span>
+        <span class="s0">} </span><span class="s2">catch </span><span class="s0">(error) {</span>
+          <span class="s0">loading.value = </span><span class="s2">false;</span>
+          <span class="s4">// Handle error, if needed</span>
+          <span class="s0">print(error)</span><span class="s2">;</span>
+        <span class="s0">} </span><span class="s2">finally </span><span class="s0">{</span>
+          <span class="s0">loading.value = </span><span class="s2">false; </span><span class="s4">// Set</span>
+        <span class="s0">}</span>
+      <span class="s0">} </span><span class="s2">else </span><span class="s0">{</span>
+
+        <span class="s0">loadData()</span><span class="s2">;</span>
+        <span class="s4">/*Get.toNamed(Routes.networkError)!.then((value) { 
+          if (value != null) { 
+            print(&quot;object check back to screen&quot;); 
+            onInit(); 
+          } 
+        });*/</span>
+      <span class="s0">}</span>
+    <span class="s0">})</span><span class="s2">;</span>
+  <span class="s0">}</span>
+
+  <span class="s2">void </span><span class="s0">toggleFavorite(int index) {</span>
+    <span class="s0">dataList[index].isFavorite?.value = !dataList[index].isFavorite!.value</span><span class="s2">;</span>
+    <span class="s0">saveFavoritesToPrefs()</span><span class="s2">;</span>
+    <span class="s4">// fetchData();</span>
+    <span class="s4">// update();</span>
+  <span class="s0">}</span>
+
+  <span class="s0">Future&lt;List&lt;AppResponseModel&gt;&gt; readDataFromHive() async {</span>
+    <span class="s2">final </span><span class="s0">box = await Hive.openBox(</span><span class="s1">'ApiData'</span><span class="s0">)</span><span class="s2">;</span>
+    <span class="s2">final </span><span class="s0">List&lt;AppResponseModel&gt; data = box.values.map((value) =&gt; value as AppResponseModel).toList()</span><span class="s2">;</span>
+    <span class="s0">await box.close()</span><span class="s2">;</span>
+    <span class="s2">return </span><span class="s0">data</span><span class="s2">;</span>
+  <span class="s0">}</span>
+
+  <span class="s0">Future&lt;</span><span class="s2">void</span><span class="s0">&gt; loadData() async {</span>
+    <span class="s4">// First, try to load data from Hive</span>
+    <span class="s2">final </span><span class="s0">offlineData = await readDataFromHive()</span><span class="s2">;</span>
+
+    <span class="s2">if </span><span class="s0">(offlineData.isNotEmpty) {</span>
+      <span class="s4">// Data is available offline</span>
+      <span class="s0">dataList.assignAll(offlineData)</span><span class="s2">;</span>
+      <span class="s0">steps.value = dataList[</span><span class="s3">0</span><span class="s0">].tags ?? []</span><span class="s2">;</span>
+      <span class="s0">print(</span><span class="s1">&quot;Data is available&quot;</span><span class="s0">)</span><span class="s2">;</span>
+      <span class="s0">print(</span><span class="s1">&quot;Data is available dataList </span><span class="s0">${dataList.length}</span><span class="s1">&quot;</span><span class="s0">)</span><span class="s2">;</span>
+      <span class="s0">print(</span><span class="s1">&quot;Data is available steps</span><span class="s0">${steps.length}</span><span class="s1">&quot;</span><span class="s0">)</span><span class="s2">;</span>
+
+    <span class="s0">} </span><span class="s2">else </span><span class="s0">{</span>
+      <span class="s4">// Data is not available offline, fetch it from the API (assuming you have an online fallback)</span>
+      <span class="s0">print(</span><span class="s1">&quot;Data is not available offline&quot;</span><span class="s0">)</span><span class="s2">;</span>
+      <span class="s4">// await fetchDataAndStoreInHive();</span>
+    <span class="s0">}</span>
+  <span class="s0">}</span>
+
+
+  <span class="s0">String greetings() {</span>
+    <span class="s2">final </span><span class="s0">hour = TimeOfDay.now().hour</span><span class="s2">;</span>
+    <span class="s2">if </span><span class="s0">(hour &lt;= </span><span class="s3">12</span><span class="s0">) {</span>
+      <span class="s2">return </span><span class="s1">'Good Morning'</span><span class="s2">;</span>
+    <span class="s0">} </span><span class="s2">else if </span><span class="s0">(hour &lt;= </span><span class="s3">17</span><span class="s0">) {</span>
+      <span class="s2">return </span><span class="s1">'Good AfterNoon'</span><span class="s2">;</span>
+    <span class="s0">}</span>
+    <span class="s2">return </span><span class="s1">'Evening'</span><span class="s2">;</span>
+  <span class="s0">}</span>
+
+  <span class="s0">getSearchResult(String searchQuery) {</span>
+    <span class="s0">isChanged.value = </span><span class="s2">true;</span>
+    <span class="s0">checkConnectivity().then((connectivity) async {</span>
+      <span class="s2">if </span><span class="s0">(connectivity) {</span>
+        <span class="s2">if </span><span class="s0">(dataList.isNotEmpty) {</span>
+          <span class="s2">for </span><span class="s0">(</span><span class="s2">var </span><span class="s0">i = </span><span class="s3">0</span><span class="s2">; </span><span class="s0">i &lt; dataList.length</span><span class="s2">; </span><span class="s0">i++) {</span>
+            <span class="s2">if </span><span class="s0">((dataList[i].name?.toLowerCase())!.contains(searchQuery.toLowerCase())) {</span>
+              <span class="s0">foodListSearch.add(dataList[i])</span><span class="s2">;</span>
+            <span class="s0">}</span>
+          <span class="s0">}</span>
+        <span class="s0">} </span><span class="s2">else </span><span class="s0">{</span>
+          <span class="s0">foodListSearch.clear()</span><span class="s2">;</span>
+        <span class="s0">}</span>
+      <span class="s0">}</span>
+    <span class="s0">})</span><span class="s2">;</span>
+  <span class="s0">}</span>
+
+  <span class="s2">void </span><span class="s0">saveFavoritesToPrefs() async {</span>
+    <span class="s2">final </span><span class="s0">prefs = await SharedPreferences.getInstance()</span><span class="s2">;</span>
+    <span class="s2">final </span><span class="s0">favoriteIds = dataList.where((item) =&gt; item.isFavorite?.value ?? </span><span class="s2">true</span><span class="s0">).map((item) =&gt; item.id).toList()</span><span class="s2">;</span>
+    <span class="s0">prefs.setStringList(</span><span class="s1">'favoriteIds'</span><span class="s2">, </span><span class="s0">favoriteIds.map((id) =&gt; id.toString()).toList())</span><span class="s2">;</span>
+  <span class="s0">}</span>
+
+  <span class="s0">Future&lt;List&lt;String&gt;&gt; getFavoriteIdsFromPrefs() async {</span>
+    <span class="s2">final </span><span class="s0">prefs = await SharedPreferences.getInstance()</span><span class="s2">;</span>
+    <span class="s2">return </span><span class="s0">prefs.getStringList(</span><span class="s1">'favoriteIds'</span><span class="s0">) ?? []</span><span class="s2">;</span>
+  <span class="s0">}</span>
+<span class="s0">}</span>
+</pre>
+</body>
+</html>
